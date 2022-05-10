@@ -52,6 +52,7 @@ object Dependencies {
   val core = Seq(
     akkaPersistence,
     akkaPersistenceQuery,
+    "org.postgresql" % "postgresql" % "42.3.5",
     r2dbcSpi,
     r2dbcPool,
     r2dbcPostgres,

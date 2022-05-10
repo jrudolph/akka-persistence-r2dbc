@@ -6,11 +6,9 @@ package akka.persistence.r2dbc
 
 import java.time.{ Duration => JDuration }
 import java.util.concurrent.ConcurrentHashMap
-
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.jdk.CollectionConverters.ConcurrentMapHasAsScala
-
 import akka.Done
 import akka.actor.CoordinatedShutdown
 import akka.actor.typed.ActorSystem
@@ -24,6 +22,9 @@ import io.r2dbc.postgresql.client.SSLMode
 import io.r2dbc.spi.ConnectionFactories
 import io.r2dbc.spi.ConnectionFactory
 import io.r2dbc.spi.ConnectionFactoryOptions
+import org.postgresql.ds.{ PGConnectionPoolDataSource, PGPoolingDataSource, PGSimpleDataSource }
+
+import javax.sql.DataSource
 
 object ConnectionFactoryProvider extends ExtensionId[ConnectionFactoryProvider] {
   def createExtension(system: ActorSystem[_]): ConnectionFactoryProvider = new ConnectionFactoryProvider(system)
@@ -36,6 +37,7 @@ class ConnectionFactoryProvider(system: ActorSystem[_]) extends Extension {
 
   import R2dbcExecutor.PublisherOps
   private val sessions = new ConcurrentHashMap[String, ConnectionPool]
+  private val sessionsJDBC = new ConcurrentHashMap[String, DataSource]
 
   CoordinatedShutdown(system)
     .addTask(CoordinatedShutdown.PhaseBeforeActorSystemTerminate, "close connection pools") { () =>
@@ -56,6 +58,15 @@ class ConnectionFactoryProvider(system: ActorSystem[_]) extends Extension {
         })
       .asInstanceOf[ConnectionFactory]
   }
+  def dataSourceFor(configLocation: String): DataSource =
+    sessionsJDBC
+      .computeIfAbsent(
+        configLocation,
+        configLocation => {
+          val config = system.settings.config.getConfig(configLocation)
+          val settings = new ConnectionFactorySettings(config)
+          createDataSource(settings)
+        })
 
   private def createConnectionFactory(settings: ConnectionFactorySettings): ConnectionFactory = {
 
@@ -132,4 +143,20 @@ class ConnectionFactoryProvider(system: ActorSystem[_]) extends Extension {
     pool
   }
 
+  private def createDataSource(settings: ConnectionFactorySettings): DataSource = {
+    val datasource = new PGSimpleDataSource
+    datasource.setServerName(settings.host)
+    datasource.setPortNumber(settings.port)
+    datasource.setUser(settings.user)
+    datasource.setPassword(settings.password)
+    datasource.setDatabaseName(settings.database)
+    //datasource.setApplicationName("Hermes Unit Tests")
+    datasource
+    //.option(ConnectionFactoryOptions.DRIVER, settings.driver)
+//      .option(ConnectionFactoryOptions.HOST, settings.host)
+//      .option(ConnectionFactoryOptions.PORT, Integer.valueOf(settings.port))
+//      .option(ConnectionFactoryOptions.USER, settings.user)
+//      .option(ConnectionFactoryOptions.PASSWORD, settings.password)
+//      .option(ConnectionFactoryOptions.DATABASE, settings.database)
+  }
 }
