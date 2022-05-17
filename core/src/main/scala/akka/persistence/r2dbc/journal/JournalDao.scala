@@ -5,10 +5,8 @@
 package akka.persistence.r2dbc.journal
 
 import java.time.Instant
-
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-
 import akka.actor.typed.ActorSystem
 import akka.annotation.InternalApi
 import akka.persistence.Persistence
@@ -22,6 +20,8 @@ import io.r2dbc.spi.Row
 import io.r2dbc.spi.Statement
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+
+import java.sql.ResultSet
 
 /**
  * INTERNAL API
@@ -56,6 +56,18 @@ private[r2dbc] object JournalDao {
           SerializedEventMetadata(
             serId = row.get("meta_ser_id", classOf[Integer]),
             serManifest = row.get("meta_ser_manifest", classOf[String]),
+            metaPayload))
+    }
+  }
+
+  def readMetadata(row: ResultSet): Option[SerializedEventMetadata] = {
+    row.getBytes("meta_payload") match {
+      case null => None
+      case metaPayload =>
+        Some(
+          SerializedEventMetadata(
+            serId = row.getInt("meta_ser_id"),
+            serManifest = row.getString("meta_ser_manifest"),
             metaPayload))
     }
   }

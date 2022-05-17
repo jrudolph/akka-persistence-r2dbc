@@ -5,11 +5,9 @@
 package akka.persistence.r2dbc.query.scaladsl
 
 import java.time.Instant
-
 import scala.collection.immutable
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
-
 import akka.NotUsed
 import akka.actor.ExtendedActorSystem
 import akka.actor.typed.pubsub.Topic
@@ -30,7 +28,7 @@ import akka.persistence.r2dbc.R2dbcSettings
 import akka.persistence.r2dbc.internal.BySliceQuery
 import akka.persistence.r2dbc.internal.ContinuousQuery
 import akka.persistence.r2dbc.internal.PubSub
-import akka.persistence.r2dbc.journal.JournalDao
+import akka.persistence.r2dbc.journal.{ JournalDao, JournalDaoJDBC }
 import akka.persistence.r2dbc.journal.JournalDao.SerializedJournalRow
 import akka.persistence.typed.PersistenceId
 import akka.serialization.SerializationExtension
@@ -68,10 +66,13 @@ final class R2dbcReadJournal(system: ExtendedActorSystem, config: Config, cfgPat
   import typedSystem.executionContext
   private val serialization = SerializationExtension(system)
   private val persistenceExt = Persistence(system)
-  private val connectionFactory = ConnectionFactoryProvider(typedSystem)
-    .connectionFactoryFor(sharedConfigPath + ".connection-factory")
+  //private val connectionFactory = ConnectionFactoryProvider(typedSystem)
+  //  .connectionFactoryFor(sharedConfigPath + ".connection-factory")
+  private val connectionFactory =
+    ConnectionFactoryProvider(typedSystem).dataSourceFor(sharedConfigPath + ".connection-factory")
   private val queryDao =
-    new QueryDao(settings, connectionFactory)(typedSystem.executionContext, typedSystem)
+    new QueryDaoJDBC(settings, connectionFactory)(typedSystem)
+  //new QueryDao(settings, connectionFactory)(typedSystem.executionContext, typedSystem)
 
   private val _bySlice: BySliceQuery[SerializedJournalRow, EventEnvelope[Any]] = {
     val createEnvelope: (TimestampOffset, SerializedJournalRow) => EventEnvelope[Any] = (offset, row) => {
@@ -96,7 +97,7 @@ final class R2dbcReadJournal(system: ExtendedActorSystem, config: Config, cfgPat
   private def bySlice[Event]: BySliceQuery[SerializedJournalRow, EventEnvelope[Event]] =
     _bySlice.asInstanceOf[BySliceQuery[SerializedJournalRow, EventEnvelope[Event]]]
 
-  private val journalDao = new JournalDao(settings, connectionFactory)(typedSystem.executionContext, typedSystem)
+  private val journalDao = new JournalDaoJDBC(settings, connectionFactory)(typedSystem.executionContext, typedSystem)
 
   def extractEntityTypeFromPersistenceId(persistenceId: String): String =
     PersistenceId.extractEntityType(persistenceId)
