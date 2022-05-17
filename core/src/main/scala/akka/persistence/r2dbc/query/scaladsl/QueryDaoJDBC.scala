@@ -248,7 +248,7 @@ private[r2dbc] class QueryDaoJDBC(settings: R2dbcSettings, connectionFactory: Da
     r2dbcExecutor.selectOne("select one event")(
       { connection =>
         val stmt = connection
-          .prepareStatement(selectTimestampOfEventSql)
+          .prepareStatement(selectOneEventSql)
 
         stmt.setString(1, persistenceId)
         stmt.setLong(2, seqNr)
