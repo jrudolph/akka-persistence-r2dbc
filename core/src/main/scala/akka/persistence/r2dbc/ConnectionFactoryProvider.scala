@@ -144,14 +144,21 @@ class ConnectionFactoryProvider(system: ActorSystem[_]) extends Extension {
   }
 
   private def createDataSource(settings: ConnectionFactorySettings): DataSource = {
-    val datasource = new PGSimpleDataSource
+    import com.zaxxer.hikari.HikariDataSource
+    val ds = new HikariDataSource
+    import settings._
+    ds.setJdbcUrl(s"jdbc:postgresql://$host:$port/$database")
+    ds.setUsername(user)
+    ds.setPassword(database)
+    ds
+    /*val datasource = new PGSimpleDataSource
     datasource.setServerName(settings.host)
     datasource.setPortNumber(settings.port)
     datasource.setUser(settings.user)
     datasource.setPassword(settings.password)
     datasource.setDatabaseName(settings.database)
     //datasource.setApplicationName("Hermes Unit Tests")
-    datasource
+    datasource*/
     //.option(ConnectionFactoryOptions.DRIVER, settings.driver)
 //      .option(ConnectionFactoryOptions.HOST, settings.host)
 //      .option(ConnectionFactoryOptions.PORT, Integer.valueOf(settings.port))

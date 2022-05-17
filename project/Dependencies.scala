@@ -53,6 +53,7 @@ object Dependencies {
     akkaPersistence,
     akkaPersistenceQuery,
     "org.postgresql" % "postgresql" % "42.3.5",
+    "com.zaxxer" % "HikariCP" % "4.0.3",
     r2dbcSpi,
     r2dbcPool,
     r2dbcPostgres,
