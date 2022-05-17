@@ -226,6 +226,7 @@ class R2dbcExecutorJDBC(val connectionFactory: DataSource, log: Logger, logDbCal
       }(dbDispatcher)
 
       mappedRows.map { r =>
+        connection.close()
         val durationMicros = durationInMicros(startTime)
         if (durationMicros >= logDbCallsExceedingMicros)
           log.info("{} - Selected [{}] rows in [{}] µs", logPrefix, r.size, durationMicros)
