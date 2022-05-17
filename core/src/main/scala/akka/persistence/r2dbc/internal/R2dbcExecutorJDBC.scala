@@ -7,13 +7,15 @@ package akka.persistence.r2dbc.internal
 import akka.Done
 import akka.actor.typed.{ ActorSystem, DispatcherSelector }
 import akka.annotation.InternalStableApi
+import akka.stream.scaladsl.Source
 import org.slf4j.Logger
 
 import java.sql.{ Connection, PreparedStatement, ResultSet, Statement }
+import java.util.concurrent.{ ConcurrentLinkedQueue, LinkedBlockingQueue }
 import javax.sql.DataSource
 import scala.collection.immutable.VectorBuilder
 import scala.collection.{ immutable, mutable }
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ ExecutionContext, Future, Promise }
 import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
 
@@ -94,13 +96,36 @@ class R2dbcExecutorJDBC(val connectionFactory: DataSource, log: Logger, logDbCal
   private def durationInMicros(startTime: Long): Long =
     (nanoTime() - startTime) / 1000
 
+  val asyncConnectionProvider: () => Future[Connection] = {
+    val queue = new LinkedBlockingQueue[Promise[Connection]]()
+
+    new Thread {
+      override def run(): Unit =
+        while (true) {
+          val p = queue.take()
+//          if (p eq null) Thread.
+//          else {
+          val c = connectionFactory.getConnection
+          p.success(c)
+          //}
+        }
+    }.start()
+
+    { () =>
+      val p = Promise[Connection]()
+      queue.offer(p)
+      p.future
+    }
+  }
+
   private def getConnection(logPrefix: String): Future[Connection] = {
     val startTime = nanoTime()
-    Future(connectionFactory.getConnection)(dbDispatcher) // FIXME: need a cleverer way to wait for connection
+
+    asyncConnectionProvider()
       .map { connection =>
         val durationMicros = durationInMicros(startTime)
         if (durationMicros >= logDbCallsExceedingMicros)
-          log.info("{} - getConnection took [{}] µs", logPrefix, durationMicros)
+          println("{} - getConnection took [{}] µs", logPrefix, durationMicros)
         connection
       }(ExecutionContext.parasitic)
   }
