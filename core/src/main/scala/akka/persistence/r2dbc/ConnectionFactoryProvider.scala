@@ -150,6 +150,7 @@ class ConnectionFactoryProvider(system: ActorSystem[_]) extends Extension {
     ds.setJdbcUrl(s"jdbc:postgresql://$host:$port/$database")
     ds.setUsername(user)
     ds.setPassword(database)
+    ds.setMaximumPoolSize(settings.maxSize)
     ds
     /*val datasource = new PGSimpleDataSource
     datasource.setServerName(settings.host)
